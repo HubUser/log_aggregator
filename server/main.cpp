@@ -18,17 +18,17 @@ public:
 
     void on_read(ConnectionPtr connection, const boost::system::error_code& error) {
         if (error) {
-            if (error == boost::asio::error::eof) {
-                ss << connection->get_data();
-                std::cout << ss.str() << std::endl;
-                ss = std::stringstream();
-            } else {
+            if (error != boost::asio::error::eof) {
                 std::cout << "Error: " << error.message() << std::endl;
                 ss = std::stringstream();
                 return;
             }
+            ss << connection->get_data();
+            std::cout << ss.str() << std::endl;
+            ss = std::stringstream();
+        } else {
+            ss << connection->get_data();
         }
-        ss << connection->get_data();
     }
 };
 
