@@ -2,6 +2,7 @@
 #include "boost/asio/io_service.hpp"
 #include "boost/asio/ip/tcp.hpp"
 #include "boost/asio/write.hpp"
+#include "boost/asio/read.hpp"
 
 #include "boost/optional.hpp"
 
@@ -34,9 +35,12 @@ public:
 	}
     ConnectionWithData(const ConnectionWithData&) = delete;
     ConnectionWithData(ConnectionWithData&&) = delete;
-    void set_data(const std::string& new_data) {
-        data = new_data;
-        }
+    void set_data(std::string new_data) {
+        data = std::move(new_data);
+    }
+    void data_resize(size_t bytes_count) {
+        data.resize(bytes_count);
+    }
     const std::string& get_data() const {
         return data;
     }
@@ -56,13 +60,22 @@ public:
 		, task(f) { }
 
 	void operator() (const boost::system::error_code& error, std::size_t bytes_count) {
-		//connection->data.resize(bytes_count);
+		connection->data_resize(bytes_count);
 		task(std::move(connection), error);
 	}
 };
 template<typename Functor>
 void async_write_data(ConnectionPtr connection, Functor&& f) {
     boost::asio::async_write(connection->get_socket(), boost::asio::buffer(connection->get_data()), TaskWithConnection(std::move(connection), f));
+}
+template<typename Functor>
+void async_read_data(ConnectionPtr connection, Functor&& f, size_t bytes_count) {
+    auto buffer = std::string();
+    buffer.resize(bytes_count);
+    char* buffer_ptr = buffer.data();
+    connection->set_data(std::move(buffer));
+
+    boost::asio::async_read(connection->get_socket(), boost::asio::buffer(buffer_ptr, bytes_count), TaskWithConnection(std::move(connection), f));
 }
 class ConnectionProcessor {
 public:
